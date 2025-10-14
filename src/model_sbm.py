@@ -3,7 +3,7 @@ from pathlib import Path
 from sklearn.multioutput import ClassifierChain
 from sklearn.linear_model import LogisticRegression
 from sklearn.ensemble import RandomForestClassifier
-from .config import MODELS_DIR, MODEL_CONFIG
+from src.config import MODELS_DIR, MODEL_CONFIG
 
 class SBMClassifierChain:
     def __init__(self, model_type='logistic_regression'):

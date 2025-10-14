@@ -5,7 +5,7 @@ from nltk.corpus import stopwords
 from sklearn.feature_extraction.text import CountVectorizer
 import joblib
 from pathlib import Path
-from .config import DATA_DIR, MODELS_DIR, PREPROCESSING_CONFIG
+from src.config import DATA_DIR, MODELS_DIR, PREPROCESSING_CONFIG
 
 # Descargar recursos de NLTK si es necesario
 try:

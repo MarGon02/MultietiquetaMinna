@@ -1,9 +1,9 @@
 import pandas as pd
 import joblib
 from pathlib import Path
-from .preprocessor import TextPreprocessor
-from .model_sbm import SBMClassifierChain
-from .config import MODELS_DIR
+from src.preprocessor import TextPreprocessor
+from src.model_sbm import SBMClassifierChain
+from src.config import MODELS_DIR
 
 class Predictor:
     def __init__(self):

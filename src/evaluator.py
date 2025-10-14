@@ -8,7 +8,7 @@ from sklearn.metrics import (
     confusion_matrix
 )
 from pathlib import Path
-from .config import RESULTS_DIR
+from src.config import RESULTS_DIR
 
 class ModelEvaluator:
     def __init__(self, label_columns):

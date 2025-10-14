@@ -3,7 +3,7 @@ import numpy as np
 import joblib
 from pathlib import Path
 from sklearn.model_selection import train_test_split
-from .config import DATA_DIR, MODELS_DIR
+from src.config import DATA_DIR, MODELS_DIR
 
 class DataLoader:
     def __init__(self, data_path=None):
