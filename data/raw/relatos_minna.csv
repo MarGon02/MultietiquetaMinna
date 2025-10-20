@@ -1,21 +1,51 @@
-texto,label_violencia_fisica,label_abandono
-El padre golpeÃ³ al niÃ±o y la madre no estuvo presente para ayudar.,1,0
-La niÃ±a fue dejada sola toda la noche sin supervisiÃ³n.,0,1
-El tutor empujÃ³ al adolescente en la escuela y no permitiÃ³ que lo atendieran.,1,0
-El menor pasÃ³ dos dÃ­as sin comida adecuada ni atenciÃ³n.,0,1
-Denuncia por golpes y moretones visibles en los brazos del niÃ±o.,1,0
-La madre saliÃ³ y dejÃ³ a los tres hermanos solos por muchas horas.,0,1
-Vecinos reportan gritos y golpes constantes en la casa.,1,0
-La cuidadora no se presentÃ³ por varios dÃ­as y el menor faltÃ³ a la escuela.,0,1
-Agresiones fÃ­sicas repetidas fueron observadas por el docente.,1,0
-El bebÃ© quedÃ³ sin supervisiÃ³n en la vivienda durante horas.,0,1
-El adolescente reporta empujones y patadas del padrastro.,1,0
-El menor estuvo solo varios fines de semana seguidos sin un adulto responsable.,0,1
-Se observaron marcas de golpes recientes en la espalda del niÃ±o.,1,0
-Los cuidadores salen por la noche y dejan a los niÃ±os sin cuidados.,0,1
-El padre le tirÃ³ del brazo con fuerza dejÃ¡ndole dolor.,1,0
-La niÃ±a pasa muchas horas sin comida ni supervisiÃ³n adulta.,0,1
-Reportan bofetadas y moretones frecuentes.,1,0
-El niÃ±o fue encontrado solo en la calle por la noche.,0,1
-El padrastro lo golpeÃ³ con el cinturÃ³n segÃºn testigos.,1,0
-La madre no aparece por dÃ­as y el menor queda al cuidado de vecinos.,0,1
+texto,label_violencia_fisica,label_violencia_psicologica,label_abandono,label_abuso_sexual,label_negligencia
+El niño presenta moretones en brazos y piernas, dice que se cayó pero la explicación no coincide con las lesiones,1,1,0,0,0
+La niña llega constantemente al colegio sin desayunar y con uniforme sucio, parece tener hambre,0,0,1,0,1
+El adolescente muestra comportamientos sexualizados no acordes a su edad, tiene pesadillas frecuentes,0,1,0,1,0
+La madre refiere que no tiene recursos para comprar medicamentos para su hijo con enfermedad crónica,0,0,0,0,1
+El docente observa que el estudiante se aísla de sus compañeros, evita el contacto visual y tiene bajo rendimiento académico,0,1,0,0,0
+Menor presenta fractura de brazo sin atención médica adecuada, los padres no explican cómo ocurrió el accidente,1,0,0,0,1
+Niña de 8 años cuida sola a sus hermanos menores mientras los padres trabajan hasta tarde,0,0,1,0,0
+El niño relata que en casa lo encierran en el cuarto cuando llora o hace berrinches,0,1,0,0,0
+Adolescente muestra marcas de quemaduras en las manos, dice que fue un accidente cocinando,1,0,0,0,0
+La bebé de 6 meses presenta bajo peso y desarrollo psicomotor retardado, no asiste a controles de salud,0,0,0,0,1
+Menor refiere que un familiar lo toca de manera inapropiada cuando están solos,0,0,0,1,0
+El estudiante llega frecuentemente con ropa inadecuada para el clima, sin abrigo en invierno,0,0,1,0,1
+Niño observado con hematomas en diferentes estados de cicatrización, parece ser golpeado regularmente,1,1,0,0,0
+La adolescente presenta trastorno alimentario, dice que en casa la critican constantemente por su peso,0,1,0,0,0
+Menor abandonado en hospital después de tratamiento, los padres no responden a llamados,0,0,1,0,0
+Niña de 10 años encargada de todas las tareas domésticas y cuidado de hermanos, no tiene tiempo para estudiar,0,0,1,0,1
+El niño muestra conductas agresivas con compañeros, imita golpes y gritos que escucha en casa,1,1,0,0,0
+Menor no recibe tratamiento para problema visual diagnosticado hace 6 meses,0,0,0,0,1
+Adolescente revela que debe mostrar su cuerpo a través de internet para obtener dinero,0,0,0,1,0
+Niño encontrado solo en parque a altas horas de la noche, no sabe dónde están sus padres,0,0,1,0,0
+La niña presenta infecciones urinarias recurrentes sin tratamiento adecuado,0,0,0,0,1
+Estudiante cambia abruptamente su comportamiento, de ser sociable pasa a ser retraído y temeroso,0,1,0,1,0
+Menor con caries severas sin atención dental, refiere dolor constante al comer,0,0,0,0,1
+El padre amenaza constantemente al niño con golpearlo si no obtiene buenas calificaciones,0,1,0,0,0
+Niña abandonada en estación de buses con una nota pidiendo ayuda,0,0,1,0,0
+Adolescente muestra marcas de correa en espalda y piernas, justifica diciendo que se lo merecía,1,1,0,0,0
+Menor no vacunado según esquema nacional, padres se niegan por creencias personales,0,0,0,0,1
+El niño relata que lo obligan a beber alcohol como castigo por su comportamiento,1,1,0,0,0
+Niña observada con mismo uniforme toda la semana, evidente falta de higiene personal,0,0,1,0,1
+Estudiante falta frecuentemente a clases para trabajar y ayudar económicamente en casa,0,0,1,0,1
+Menor revela que debe desvestirse frente a adultos para su diversión,0,0,0,1,0
+El adolescente presenta lesiones en labios y mejillas, parece ser abofeteado regularmente,1,0,0,0,0
+Niño con problemas de aprendizaje no recibe apoyo educativo especializado,0,0,0,0,1
+La madre confiesa que no puede hacerse cargo del bebé por problemas de adicción,0,0,1,0,0
+Estudiante expresa deseos de morir, dice que en casa le repiten que es una carga,0,1,0,0,0
+Menor con asma no controlada, no tiene inhalador para crisis respiratorias,0,0,0,0,1
+Niña encontrada vendiendo dulces sola en la calle hasta altas horas de la noche,0,0,1,0,1
+El niño muestra conocimiento explícito de actos sexuales, inapropiado para su edad,0,0,0,1,0
+Adolescente con fractura de costillas sin atención médica, teme decir cómo ocurrió,1,0,0,0,1
+Menor llega constantemente con piojos sin tratamiento, afectando a otros estudiantes,0,0,0,0,1
+La niña es testigo de violencia constante entre sus padres, presenta ansiedad y terrores nocturnos,0,1,0,0,0
+Estudiante abandonado en colegio después de horario escolar, ningún familiar responde,0,0,1,0,0
+El niño es utilizado para mendigar en semáforos durante horario escolar,0,0,1,0,1
+Adolescente recibe mensajes humillantes y amenazas constantes de sus padres por redes sociales,0,1,0,0,0
+Menor con quemaduras de cigarrillo en brazos, dice que fue un juego,1,0,0,0,0
+Niña no recibe alimentación adecuada por creencias dietéticas extremas de los padres,0,0,0,0,1
+El estudiante es obligado a practicar deportes extenuantes como castigo por mal comportamiento,1,1,0,0,0
+Menor revela que personas desconocidas toman fotos de su cuerpo sin ropa,0,0,0,1,0
+La bebé presenta desnutrición, padres rechazan ayuda alimentaria por orgullo,0,0,0,0,1
+Niño observado con marcas de mordeduras humanas en diferentes partes del cuerpo,1,0,0,0,0

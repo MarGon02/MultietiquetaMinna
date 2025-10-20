@@ -5,10 +5,10 @@ from pathlib import Path
 src_path = Path(__file__).parent / "src"
 sys.path.append(str(src_path))
 
-from data_loader import DataLoader
-from preprocessor import TextPreprocessor
-from model_sbm import SBMClassifierChain
-from evaluator import ModelEvaluator
+from src.data_loader import DataLoader
+from src.preprocessor import TextPreprocessor
+from src.model_sbm import SBMClassifierChain
+from src.evaluator import ModelEvaluator
 
 def main():
     print("🚀 INICIANDO PROYECTO PLN - MINNA")

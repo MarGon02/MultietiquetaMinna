@@ -12,7 +12,7 @@ class DataLoader:
     def load_data(self):
         """Carga los datos desde el archivo CSV"""
         try:
-            self.data = pd.read_csv(self.data_path)
+            self.data = pd.read_csv(self.data_path, encoding='latin1')
             print(f"✅ Datos cargados: {self.data.shape[0]} filas, {self.data.shape[1]} columnas")
             return self.data
         except FileNotFoundError:
@@ -34,9 +34,16 @@ class DataLoader:
         print(self.data.describe())
         
         # Identificar columnas de texto y etiquetas
-        self.text_column = 'relato'  # Ajustar según tu dataset
-        self.label_columns = [col for col in self.data.columns 
-                            if col not in [self.text_column, 'id']]
+        self.text_column = 'texto'  # Ajustar según tu dataset
+        self.label_columns = [
+                                col for col in self.data.columns
+                                if col.startswith("label_")
+                                ]
+        # ✅ Rellenar etiquetas vacías con 0
+        self.data[self.label_columns] = self.data[self.label_columns].fillna(0)
+
+        # ✅ Asegurarse de que sean enteros
+        self.data[self.label_columns] = self.data[self.label_columns].astype(int)
         
         print(f"\n=== COLUMNA DE TEXTO: {self.text_column} ===")
         print(f"=== COLUMNAS DE ETIQUETAS: {self.label_columns} ===")
@@ -52,7 +59,7 @@ class DataLoader:
         y = self.data[self.label_columns]
         
         X_train, X_test, y_train, y_test = train_test_split(
-            X, y, test_size=test_size, random_state=random_state, stratify=y
+            X, y, test_size=test_size, random_state=random_state ##, stratify=y
         )
         
         print(f"✅ Datos divididos:")
