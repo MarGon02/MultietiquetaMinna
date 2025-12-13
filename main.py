@@ -9,6 +9,7 @@ from src.data_loader import DataLoader
 from src.preprocessor import TextPreprocessor
 from src.model_sbm import SBMClassifierChain
 from src.evaluator import ModelEvaluator
+from src.model_berto import BETOMultiLabelClassifier 
 
 def main():
     print("🚀 INICIANDO PROYECTO PLN - MINNA")
@@ -64,6 +65,39 @@ def main():
     
     # Mostrar resultados
     evaluator.print_metrics('SBM_ClassifierChain')
+
+     # 7.b Entrenar y evaluar modelo BETO
+    print("\n7.b 🤖 ENTRENANDO MODELO BETO...")
+    from sklearn.model_selection import train_test_split
+
+    # Convertir etiquetas a numpy para BETO
+    y_train_array = y_train.values
+    y_test_array = y_test.values
+
+    # Crear modelo BETO
+    berto_model = BETOMultiLabelClassifier(num_labels=len(label_cols))
+
+    # Dividir entrenamiento en train/validación para BETO
+    X_bert_train, X_bert_val, y_bert_train, y_bert_val = train_test_split(
+        X_train_clean, y_train_array, test_size=0.2, random_state=42
+    )
+
+    # Entrenar BETO
+    berto_model.train(
+        train_texts=X_bert_train,
+        train_labels=y_bert_train,
+        val_texts=X_bert_val,
+        val_labels=y_bert_val
+    )
+
+    # Guardar modelo BETO
+    berto_model.save_model()
+
+    # Evaluar BETO en el conjunto de test
+    print("\n7.c 📊 EVALUANDO MODELO BETO...")
+    y_pred_berto, y_proba_berto = berto_model.predict(X_test_clean)
+    evaluator.calculate_metrics(y_test_array, y_pred_berto, 'BETO')
+    evaluator.print_metrics('BETO')
     
     # 8. Guardar resultados
     print("\n8. 💾 GUARDANDO RESULTADOS...")

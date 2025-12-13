@@ -8,6 +8,19 @@ from sklearn.metrics import accuracy_score, f1_score
 import joblib
 from pathlib import Path
 from .config import MODELS_DIR, MODEL_CONFIG
+from torch.utils.data import Dataset
+
+class BETODataset(Dataset):
+    def __init__(self, encodings):
+        self.encodings = encodings
+
+    def __len__(self):
+        # número de ejemplos = tamaño de la primera dimensión de input_ids
+        return self.encodings["input_ids"].size(0)
+
+    def __getitem__(self, idx):
+        # devuelve un dict {input_ids: ..., attention_mask: ..., labels: ...}
+        return {k: v[idx] for k, v in self.encodings.items()}
 
 class BETOMultiLabelClassifier:
     def __init__(self, num_labels):
@@ -15,7 +28,18 @@ class BETOMultiLabelClassifier:
         self.model = None
         self.tokenizer = None
         self.is_trained = False
-        
+        # 🧠 Hiperparámetros desde la config
+        berto_cfg = MODEL_CONFIG.get('berto', {})
+
+        # cuántas épocas, batch size y learning rate
+        self.num_train_epochs = berto_cfg.get('epochs', 3)
+        self.batch_size = berto_cfg.get('batch_size', 8)
+        self.learning_rate = berto_cfg.get('learning_rate', 5e-5)
+
+        # carpeta donde se guarda el modelo BETO
+        # MODELS_DIR viene de config y es un Path
+        self.output_dir = MODELS_DIR / berto_cfg.get('output_dir', 'berto_model')
+
         # Cargar modelo y tokenizer
         self.load_pretrained()
     
@@ -37,17 +61,19 @@ class BETOMultiLabelClassifier:
     def prepare_dataset(self, texts, labels=None, max_length=256):
         """Prepara el dataset para BETO"""
         encodings = self.tokenizer(
-            texts.tolist() if hasattr(texts, 'tolist') else texts,
+            texts.tolist() if hasattr(texts, "tolist") else texts,
             truncation=True,
             padding=True,
             max_length=max_length,
-            return_tensors="pt"
+            return_tensors="pt",
         )
-        
+
         if labels is not None:
-            encodings['labels'] = torch.tensor(labels, dtype=torch.float)
-        
-        return encodings
+            encodings["labels"] = torch.tensor(labels, dtype=torch.float)
+    
+        # 🔁 Devolvemos un Dataset compatible con HuggingFace Trainer
+        return BETODataset(encodings)
+    
     
     def compute_metrics(self, eval_pred):
         """Calcula métricas para evaluación"""
@@ -82,24 +108,20 @@ class BETOMultiLabelClassifier:
         
         # Configurar argumentos de entrenamiento
         training_args = TrainingArguments(
-            output_dir=MODELS_DIR / "berto_checkpoints",
-            num_train_epochs=MODEL_CONFIG['berto']['epochs'],
-            per_device_train_batch_size=MODEL_CONFIG['berto']['batch_size'],
-            per_device_eval_batch_size=MODEL_CONFIG['berto']['batch_size'],
-            learning_rate=MODEL_CONFIG['berto']['learning_rate'],
-            evaluation_strategy="epoch" if val_dataset else "no",
-            save_strategy="epoch",
-            logging_dir=MODELS_DIR / "logs",
-            logging_steps=10,
-            load_best_model_at_end=True if val_dataset else False,
-            metric_for_best_model="f1_macro",
-            greater_is_better=True,
-            save_total_limit=2,
-            remove_unused_columns=False,
+            output_dir=str(self.output_dir),
+            num_train_epochs=self.num_train_epochs,
+            per_device_train_batch_size=self.batch_size,
+            per_device_eval_batch_size=self.batch_size,
+            learning_rate=self.learning_rate,
+            weight_decay=0.01,
+            logging_dir="results/berto_logs",
+            logging_steps=50,
         )
+
+
         
         # Crear trainer
-        callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if val_dataset else []
+        #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if val_dataset else []
         
         self.trainer = Trainer(
             model=self.model,
@@ -107,7 +129,7 @@ class BETOMultiLabelClassifier:
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             compute_metrics=self.compute_metrics,
-            callbacks=callbacks,
+            #callbacks=callbacks,
         )
         
         # Entrenar
@@ -140,9 +162,9 @@ class BETOMultiLabelClassifier:
     def save_model(self, filename='berto_model'):
         """Guarda el modelo BETO entrenado"""
         if self.is_trained:
-            save_path = MODELS_DIR / filename
-            self.trainer.save_model(save_path)
-            self.tokenizer.save_pretrained(save_path)
+            save_path = self.output_dir  # ya es MODELS_DIR / 'berto_model' por defecto
+            self.trainer.save_model(str(save_path))
+            self.tokenizer.save_pretrained(str(save_path))
             print(f"✅ Modelo BETO guardado en: {save_path}")
     
     def load_model(self, model_path):
