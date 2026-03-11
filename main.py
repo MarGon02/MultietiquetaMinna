@@ -4,7 +4,7 @@ from pathlib import Path
 # Agregar src al path
 src_path = Path(__file__).parent / "src"
 sys.path.append(str(src_path))
-
+# cambio de parametro de umbrall para beto
 from src.data_loader import DataLoader
 from src.preprocessor import TextPreprocessor
 from src.model_sbm import SBMClassifierChain
