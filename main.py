@@ -98,6 +98,8 @@ def main():
     y_pred_berto, y_proba_berto = berto_model.predict(X_test_clean)
     evaluator.calculate_metrics(y_test_array, y_pred_berto, 'BETO')
     evaluator.print_metrics('BETO')
+    print("🔍 Positivos predichos por etiqueta:", y_pred_berto.sum(axis=0))
+    print("🔍 Total ejemplos test:", y_test_array.shape[0])
     
     # 8. Guardar resultados
     print("\n8. 💾 GUARDANDO RESULTADOS...")

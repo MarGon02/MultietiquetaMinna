@@ -22,6 +22,21 @@ class BETODataset(Dataset):
         # devuelve un dict {input_ids: ..., attention_mask: ..., labels: ...}
         return {k: v[idx] for k, v in self.encodings.items()}
 
+class WeightedTrainer(Trainer):
+    def __init__(self, *args, pos_weight=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.pos_weight = pos_weight
+
+    def compute_loss(self, model, inputs, return_outputs=False, **kwargs):
+        labels = inputs.pop("labels")
+        outputs = model(**inputs)
+        logits = outputs.logits
+
+        loss_fct = torch.nn.BCEWithLogitsLoss(pos_weight=self.pos_weight.to(logits.device))
+        loss = loss_fct(logits, labels)
+
+        return (loss, outputs) if return_outputs else loss
+
 class BETOMultiLabelClassifier:
     def __init__(self, num_labels):
         self.num_labels = num_labels
@@ -35,6 +50,8 @@ class BETOMultiLabelClassifier:
         self.num_train_epochs = berto_cfg.get('epochs', 3)
         self.batch_size = berto_cfg.get('batch_size', 8)
         self.learning_rate = berto_cfg.get('learning_rate', 5e-5)
+        # umbral para convertir prob -> 0/1
+        self.threshold = berto_cfg.get("threshold", 0.3)
 
         # carpeta donde se guarda el modelo BETO
         # MODELS_DIR viene de config y es un Path
@@ -83,7 +100,7 @@ class BETOMultiLabelClassifier:
         
         # Convertir probabilidades a etiquetas binarias
         y_pred = np.zeros(probs.shape)
-        y_pred[np.where(probs >= 0.5)] = 1
+        y_pred[np.where(probs >= self.threshold)] = 1
         
         # Calcular métricas
         f1 = f1_score(labels, y_pred, average='macro', zero_division=0)
@@ -97,6 +114,23 @@ class BETOMultiLabelClassifier:
     def train(self, train_texts, train_labels, val_texts=None, val_labels=None):
         """Entrena el modelo BETO"""
         print("⏳ Entrenando modelo BETO...")
+        # ---- pos_weight (balanceo) ----
+        train_labels_np = np.array(train_labels)
+        pos = train_labels_np.sum(axis=0).astype(np.float32)
+        neg = (train_labels_np.shape[0] - pos).astype(np.float32)
+
+        pos_weight_np = np.ones_like(pos, dtype=np.float32)
+        mask = pos > 0
+        pos_weight_np[mask] = neg[mask] / pos[mask]
+
+        # evitar pesos enormes en dataset chico (muy importante)
+        pos_weight_np = np.clip(pos_weight_np, 1.0, 10.0)
+
+        self.pos_weight = torch.tensor(pos_weight_np, dtype=torch.float32)
+
+        print("🔍 Positivos por etiqueta en TRAIN:", pos.astype(int))
+        print("✅ pos_weight:", pos_weight_np)
+
         
         # Preparar datasets
         train_dataset = self.prepare_dataset(train_texts, train_labels)
@@ -116,6 +150,7 @@ class BETOMultiLabelClassifier:
             weight_decay=0.01,
             logging_dir="results/berto_logs",
             logging_steps=50,
+            report_to=[],
         )
 
 
@@ -123,13 +158,13 @@ class BETOMultiLabelClassifier:
         # Crear trainer
         #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if val_dataset else []
         
-        self.trainer = Trainer(
+        self.trainer = WeightedTrainer(
             model=self.model,
             args=training_args,
             train_dataset=train_dataset,
             eval_dataset=val_dataset,
             compute_metrics=self.compute_metrics,
-            #callbacks=callbacks,
+            pos_weight=self.pos_weight,
         )
         
         # Entrenar
@@ -155,7 +190,7 @@ class BETOMultiLabelClassifier:
         
         # Convertir a etiquetas binarias
         y_pred = np.zeros(probabilities.shape)
-        y_pred[np.where(probabilities >= 0.5)] = 1
+        y_pred[np.where(probabilities >= self.threshold)] = 1
         
         return y_pred.astype(int), probabilities.detach().numpy()
     

@@ -18,7 +18,8 @@ MODEL_CONFIG = {
         'max_length': 256,
         'batch_size': 16,
         'learning_rate': 2e-5,
-        'epochs': 3
+        'epochs': 3,
+        'threshold': 0.5
     },
     'sbm': {
         'max_features': 5000,
