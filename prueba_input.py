@@ -9,7 +9,7 @@ if predictor.load_models():
         if texto.lower() == "salir":
             break
         resultado1 = predictor.predict_single_text(texto)
-        print(" PREDICCIÓN  Violencia física y psicológica")
+
         print(predictor.format_prediction(resultado1))
 else:
     print("❌ No se pudieron cargar los modelos. Verifica que hayan sido entrenados correctamente.")

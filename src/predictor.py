@@ -1,111 +1,215 @@
 import pandas as pd
 import joblib
 from pathlib import Path
+
 from src.preprocessor import TextPreprocessor
 from src.model_sbm import SBMClassifierChain
-from src.config import MODELS_DIR
+from src.model_berto import BETOMultiLabelClassifier
+from src.config import DATA_DIR, MODELS_DIR
+
 
 class Predictor:
     def __init__(self):
         self.preprocessor = TextPreprocessor()
+
+        # Modelos
         self.sbm_model = SBMClassifierChain()
+        self.berto_model = None  # se crea al cargar
+
+        # Etiquetas
         self.label_columns = None
-        self.is_loaded = False
-    
-    def load_models(self, vectorizer_file='sbm_vectorizer.joblib', 
-                   model_file='classifier_chain_model.joblib',
-                   labels_file='processed_data.joblib'):
-        """Carga todos los modelos necesarios para predicciones"""
-        # Cargar vectorizer
-        if not self.preprocessor.load_vectorizer(vectorizer_file):
-            return False
-        
-        # Cargar modelo
-        if not self.sbm_model.load_model(model_file):
-            return False
-        
-        # Cargar etiquetas
+
+        # Flags
+        self.is_loaded_sbm = False
+        self.is_loaded_berto = False
+
+    def load_models(
+        self,
+        vectorizer_file="sbm_vectorizer.joblib",
+        sbm_model_file="classifier_chain_model.joblib",
+        labels_file="processed_data.joblib",
+        berto_dir="berto_model",
+        berto_threshold=None,
+    ):
+        """
+        Carga SBM + BETO.
+        - SBM: vectorizer + classifier_chain_model.joblib
+        - BETO: carpeta models/berto_model (guardada por save_model de BETO)
+        """
+
+        # 1) Cargar etiquetas reales
         try:
-            from .config import DATA_DIR
             processed_data = joblib.load(DATA_DIR / "processed" / labels_file)
-            self.label_columns = processed_data['label_columns']
+
+            # Ojo: tu processed_data puede tener distintas keys según cómo lo guardaste.
+            # Lo ideal es que guardes label_columns dentro.
+            if isinstance(processed_data, dict) and "label_columns" in processed_data:
+                self.label_columns = processed_data["label_columns"]
+            else:
+                # fallback: intenta inferir si viene otra estructura
+                self.label_columns = processed_data.get("label_columns", None)
+
+            if not self.label_columns:
+                raise ValueError("No se encontró label_columns en processed_data.")
+
             print(f"✅ Etiquetas cargadas: {len(self.label_columns)} etiquetas")
-        except FileNotFoundError:
-            print("⚠️  No se pudieron cargar las etiquetas, usando predeterminadas")
-            self.label_columns = ['violencia_fisica', 'violencia_psicologica', 'abandono', 'abuso_sexual']
-        
-        self.is_loaded = True
-        print("✅ Todos los modelos cargados correctamente")
-        return True
-    
-    def predict_single_text(self, text):
-        """Predice etiquetas para un solo texto"""
-        if not self.is_loaded:
-            print("❌ Los modelos no están cargados. Ejecuta load_models() primero.")
+
+        except Exception as e:
+            print(f"⚠️  No se pudieron cargar etiquetas desde processed_data: {e}")
+            # fallback (no recomendado para tu dataset real)
+            self.label_columns = [
+                "label_maltrato",
+                "label_violación_del_deber_de_cuidado",
+                "label_situaciones_de_riesgo",
+                "label_abuso_sexual",
+                "label_negligencia",
+            ]
+
+        # 2) Cargar vectorizer SBM
+        if self.preprocessor.load_vectorizer(vectorizer_file):
+            # 3) Cargar modelo SBM
+            if self.sbm_model.load_model(sbm_model_file):
+                self.is_loaded_sbm = True
+                print("✅ SBM cargado correctamente")
+            else:
+                print("❌ No se pudo cargar el modelo SBM")
+        else:
+            print("❌ No se pudo cargar el vectorizer SBM")
+
+        # 4) Cargar BETO
+        try:
+            self.berto_model = BETOMultiLabelClassifier(num_labels=len(self.label_columns))
+            berto_path = MODELS_DIR / berto_dir
+
+            ok = self.berto_model.load_model(str(berto_path))
+            if not ok:
+                print("❌ No se pudo cargar BETO desde:", berto_path)
+            else:
+                # aplicar umbral si lo pasas desde afuera
+                if berto_threshold is not None:
+                    self.berto_model.threshold = berto_threshold
+                self.is_loaded_berto = True
+                print("✅ BETO cargado correctamente")
+
+        except Exception as e:
+            print(f"❌ Error cargando BETO: {e}")
+            self.is_loaded_berto = False
+
+        return self.is_loaded_sbm or self.is_loaded_berto
+
+    def predict_single_text(self, text: str):
+        """
+        Predice con SBM y con BETO (si están cargados).
+        Devuelve un dict con ambos resultados.
+        """
+        if not (self.is_loaded_sbm or self.is_loaded_berto):
+            print("❌ No hay modelos cargados. Ejecuta load_models() primero.")
             return None
-        
-        # Preprocesar texto
+
+        # Preprocesar texto (para SBM)
         cleaned_text = self.preprocessor.preprocess_texts([text])[0]
-        
-        # Crear SBM
-        text_sbm = self.preprocessor.create_sbm_matrix([cleaned_text], fit=False)
-        
-        # Predecir
-        prediction = self.sbm_model.predict(text_sbm)
-        probabilities = self.sbm_model.predict_proba(text_sbm)
-        
-        # Formatear resultados
+
         result = {
-            'texto': text,
-            'texto_limpio': cleaned_text,
-            'etiquetas_predichas': prediction[0],
-            'probabilidades': probabilities[0]
+            "texto": text,
+            "texto_limpio": cleaned_text,
+            "labels": self.label_columns,
+            "sbm": None,
+            "beto": None,
         }
-        
+
+        # --- SBM ---
+        if self.is_loaded_sbm:
+            text_sbm = self.preprocessor.create_sbm_matrix([cleaned_text], fit=False)
+            pred_sbm = self.sbm_model.predict(text_sbm)[0]
+            proba_sbm = self.sbm_model.predict_proba(text_sbm)[0]
+
+            result["sbm"] = {
+                "pred": pred_sbm,
+                "proba": proba_sbm,
+            }
+
+        # --- BETO ---
+        if self.is_loaded_berto:
+            # BETO puede usar el texto original o el cleaned_text.
+            # Yo recomiendo el original para no perder info, pero puedes probar.
+            pred_beto, proba_beto = self.berto_model.predict([text])
+            result["beto"] = {
+                "pred": pred_beto[0],
+                "proba": proba_beto[0],
+            }
+
         return result
-    
+
     def predict_batch(self, texts):
-        """Predice etiquetas para un lote de textos"""
-        if not self.is_loaded:
-            print("❌ Los modelos no están cargados. Ejecuta load_models() primero.")
+        """
+        Predice lote con SBM y BETO, devuelve DataFrame con columnas para ambos.
+        """
+        if not (self.is_loaded_sbm or self.is_loaded_berto):
+            print("❌ No hay modelos cargados. Ejecuta load_models() primero.")
             return None
-        
-        # Preprocesar textos
+
         cleaned_texts = self.preprocessor.preprocess_texts(texts)
-        
-        # Crear SBM
-        texts_sbm = self.preprocessor.create_sbm_matrix(cleaned_texts, fit=False)
-        
-        # Predecir
-        predictions = self.sbm_model.predict(texts_sbm)
-        probabilities = self.sbm_model.predict_proba(texts_sbm)
-        
-        # Crear DataFrame con resultados
-        results_df = pd.DataFrame({
-            'texto_original': texts,
-            'texto_limpio': cleaned_texts
-        })
-        
-        # Agregar etiquetas
-        for i, label in enumerate(self.label_columns):
-            results_df[label] = predictions[:, i]
-            results_df[f'{label}_probabilidad'] = probabilities[:, i]
-        
-        return results_df
-    
+
+        df = pd.DataFrame({"texto_original": texts, "texto_limpio": cleaned_texts})
+
+        # SBM
+        if self.is_loaded_sbm:
+            X_sbm = self.preprocessor.create_sbm_matrix(cleaned_texts, fit=False)
+            preds = self.sbm_model.predict(X_sbm)
+            probas = self.sbm_model.predict_proba(X_sbm)
+
+            for i, label in enumerate(self.label_columns):
+                df[f"SBM_{label}"] = preds[:, i]
+                df[f"SBM_{label}_prob"] = probas[:, i]
+
+        # BETO
+        if self.is_loaded_berto:
+            preds_b, probas_b = self.berto_model.predict(texts)
+
+            for i, label in enumerate(self.label_columns):
+                df[f"BETO_{label}"] = preds_b[:, i]
+                df[f"BETO_{label}_prob"] = probas_b[:, i]
+
+        return df
+
     def format_prediction(self, prediction):
-        """Formatea una predicción para mejor visualización"""
+        """
+        Muestra resultados comparando SBM vs BETO para cada etiqueta.
+        """
         if prediction is None:
-            return "No se pudo realizar la predicción"
-        
-        formatted = f"📝 TEXTO ORIGINAL: {prediction['texto']}\n"
-        formatted += f"🧹 TEXTO LIMPIO: {prediction['texto_limpio']}\n"
-        formatted += "🏷️  ETIQUETAS PREDICHAS:\n"
-        
-        for i, label in enumerate(self.label_columns):
-            pred_label = prediction['etiquetas_predichas'][i]
-            prob = prediction['probabilidades'][i]
-            status = "✅ SÍ" if pred_label == 1 else "❌ NO"
-            formatted += f"   {label}: {status} (prob: {prob:.3f})\n"
-        
-        return formatted
+            return "No se pudo realizar la predicción."
+
+        labels = prediction["labels"]
+
+        out = []
+        out.append(f"📝 TEXTO ORIGINAL: {prediction['texto']}")
+        out.append(f"🧹 TEXTO LIMPIO (SBM): {prediction['texto_limpio']}")
+        out.append("")
+
+        # Helper
+        def status(x):
+            return "✅ SÍ" if int(x) == 1 else "❌ NO"
+
+        out.append("🏷️  COMPARACIÓN DE MODELOS (por etiqueta)")
+        out.append("-" * 60)
+
+        for i, label in enumerate(labels):
+            line = [f"{label}:"]
+
+            if prediction["sbm"] is not None:
+                ps = prediction["sbm"]["pred"][i]
+                rs = prediction["sbm"]["proba"][i]
+                line.append(f"SBM={status(ps)} (p={rs:.3f})")
+            else:
+                line.append("SBM=—")
+
+            if prediction["beto"] is not None:
+                pb = prediction["beto"]["pred"][i]
+                rb = prediction["beto"]["proba"][i]
+                line.append(f"BETO={status(pb)} (p={rb:.3f})")
+            else:
+                line.append("BETO=—")
+
+            out.append("   " + " | ".join(line))
+
+        return "\n".join(out)

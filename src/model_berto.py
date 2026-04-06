@@ -45,7 +45,10 @@ class BETOMultiLabelClassifier:
         self.is_trained = False
         # 🧠 Hiperparámetros desde la config
         berto_cfg = MODEL_CONFIG.get('berto', {})
-
+        self.threshold = berto_cfg.get("threshold", 0.5)
+        self.use_pos_weight = berto_cfg.get("use_pos_weight", True)
+        self.pos_weight_cap = berto_cfg.get("pos_weight_cap", 10.0)
+        
         # cuántas épocas, batch size y learning rate
         self.num_train_epochs = berto_cfg.get('epochs', 3)
         self.batch_size = berto_cfg.get('batch_size', 8)
@@ -116,20 +119,24 @@ class BETOMultiLabelClassifier:
         print("⏳ Entrenando modelo BETO...")
         # ---- pos_weight (balanceo) ----
         train_labels_np = np.array(train_labels)
-        pos = train_labels_np.sum(axis=0).astype(np.float32)
-        neg = (train_labels_np.shape[0] - pos).astype(np.float32)
+        self.pos_weight = None
+        if self.use_pos_weight:
+            pos = train_labels_np.sum(axis=0).astype(np.float32)
+            neg = (train_labels_np.shape[0] - pos).astype(np.float32)
 
-        pos_weight_np = np.ones_like(pos, dtype=np.float32)
-        mask = pos > 0
-        pos_weight_np[mask] = neg[mask] / pos[mask]
+            pos_weight_np = np.ones_like(pos, dtype=np.float32)
+            mask = pos > 0
+            pos_weight_np[mask] = neg[mask] / pos[mask]
 
-        # evitar pesos enormes en dataset chico (muy importante)
-        pos_weight_np = np.clip(pos_weight_np, 1.0, 10.0)
+            # cap configurable
+            pos_weight_np = np.clip(pos_weight_np, 1.0, float(self.pos_weight_cap))
 
-        self.pos_weight = torch.tensor(pos_weight_np, dtype=torch.float32)
+            self.pos_weight = torch.tensor(pos_weight_np, dtype=torch.float32)
 
-        print("🔍 Positivos por etiqueta en TRAIN:", pos.astype(int))
-        print("✅ pos_weight:", pos_weight_np)
+            print("🔍 Positivos por etiqueta en TRAIN:", pos.astype(int))
+            print("✅ pos_weight:", pos_weight_np)
+        else:
+            print("ℹ️ pos_weight desactivado (Trainer estándar)")
 
         
         # Preparar datasets
@@ -158,14 +165,23 @@ class BETOMultiLabelClassifier:
         # Crear trainer
         #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if val_dataset else []
         
-        self.trainer = WeightedTrainer(
-            model=self.model,
-            args=training_args,
-            train_dataset=train_dataset,
-            eval_dataset=val_dataset,
-            compute_metrics=self.compute_metrics,
-            pos_weight=self.pos_weight,
-        )
+        if self.use_pos_weight and self.pos_weight is not None:
+            self.trainer = WeightedTrainer(
+                model=self.model,
+                args=training_args,
+                train_dataset=train_dataset,
+                eval_dataset=val_dataset,
+                compute_metrics=self.compute_metrics,
+                pos_weight=self.pos_weight,
+            )
+        else:
+            self.trainer = Trainer(
+                model=self.model,
+                args=training_args,
+                train_dataset=train_dataset,
+                eval_dataset=val_dataset,
+                compute_metrics=self.compute_metrics,
+            )
         
         # Entrenar
         self.trainer.train()
@@ -176,23 +192,41 @@ class BETOMultiLabelClassifier:
         return self.trainer
     
     def predict(self, texts):
-        """Realiza predicciones con BETO"""
-        if not self.is_trained:
-            raise ValueError("El modelo BETO no ha sido entrenado")
-        
-        # Preparar datos
-        dataset = self.prepare_dataset(texts)
-        
-        # Realizar predicciones
-        predictions = self.trainer.predict(dataset)
-        sigmoid = torch.nn.Sigmoid()
-        probabilities = sigmoid(torch.Tensor(predictions.predictions))
-        
-        # Convertir a etiquetas binarias
-        y_pred = np.zeros(probabilities.shape)
-        y_pred[np.where(probabilities >= self.threshold)] = 1
-        
-        return y_pred.astype(int), probabilities.detach().numpy()
+        """Realiza predicciones con BETO (sin depender de Trainer)"""
+        if self.model is None or self.tokenizer is None:
+            raise ValueError("El modelo BETO no está cargado")
+
+        # Si texts viene como lista o pandas series, lo convertimos a lista de strings
+        texts_list = texts.tolist() if hasattr(texts, "tolist") else list(texts)
+
+        # Tokenizar
+        encodings = self.tokenizer(
+            texts_list,
+            truncation=True,
+            padding=True,
+            max_length=256,
+            return_tensors="pt"
+        )
+
+        # Enviar a dispositivo del modelo
+        device = next(self.model.parameters()).device
+        encodings = {k: v.to(device) for k, v in encodings.items()}
+
+        self.model.eval()
+        with torch.no_grad():
+            outputs = self.model(**encodings)
+            logits = outputs.logits
+            probs = torch.sigmoid(logits).cpu().numpy()
+
+        # Threshold: puede ser float o lista/array por etiqueta
+        thr = getattr(self, "threshold", 0.5)
+        thr_arr = np.array(thr, dtype=np.float32)
+        if thr_arr.ndim == 0:
+            y_pred = (probs >= float(thr_arr)).astype(int)
+        else:
+            y_pred = (probs >= thr_arr.reshape(1, -1)).astype(int)
+
+        return y_pred, probs
     
     def save_model(self, filename='berto_model'):
         """Guarda el modelo BETO entrenado"""

@@ -1,6 +1,6 @@
 import sys
 from pathlib import Path
-
+import numpy as np
 # Agregar src al path
 src_path = Path(__file__).parent / "src"
 sys.path.append(str(src_path))
@@ -96,10 +96,29 @@ def main():
     # Evaluar BETO en el conjunto de test
     print("\n7.c 📊 EVALUANDO MODELO BETO...")
     y_pred_berto, y_proba_berto = berto_model.predict(X_test_clean)
+    from sklearn.metrics import precision_recall_fscore_support
+
+    p, r, f1, support = precision_recall_fscore_support(
+        y_test_array, y_pred_berto, average=None, zero_division=0
+    )
+
+    print("\n📌 MÉTRICAS POR ETIQUETA (BETO)")
+    for i, name in enumerate(label_cols):
+        print(f"- {name}: precision={p[i]:.3f} | recall={r[i]:.3f} | f1={f1[i]:.3f} | support={support[i]}")
+
     evaluator.calculate_metrics(y_test_array, y_pred_berto, 'BETO')
     evaluator.print_metrics('BETO')
     print("🔍 Positivos predichos por etiqueta:", y_pred_berto.sum(axis=0))
     print("🔍 Total ejemplos test:", y_test_array.shape[0])
+
+    idx = 4  # columna negligencia
+    pos_idx = np.where(y_test_array[:, idx] == 1)[0]
+    print("Indices con negligencia real=1:", pos_idx)
+
+    if len(pos_idx) > 0:
+        i = pos_idx[0]
+        print("Probabilidad BETO para el caso real de negligencia:", y_proba_berto[i, idx])
+        print("Predicción BETO para ese caso:", y_pred_berto[i, idx])
     
     # 8. Guardar resultados
     print("\n8. 💾 GUARDANDO RESULTADOS...")

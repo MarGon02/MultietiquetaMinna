@@ -19,7 +19,9 @@ MODEL_CONFIG = {
         'batch_size': 16,
         'learning_rate': 2e-5,
         'epochs': 3,
-        'threshold': 0.5
+        'threshold': [0.50, 0.50, 0.50, 0.50, 0.50],
+        'use_pos_weight': True,
+        'pos_weight_cap': 10.0
     },
     'sbm': {
         'max_features': 5000,
