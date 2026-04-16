@@ -16,12 +16,12 @@ MODEL_CONFIG = {
     'berto': {
         'model_name': 'dccuchile/bert-base-spanish-wwm-uncased',
         'max_length': 256,
-        'batch_size': 16,
+        'batch_size': 8,
         'learning_rate': 2e-5,
-        'epochs': 3,
-        'threshold': [0.50, 0.50, 0.50, 0.50, 0.50],
+        'epochs': 8,
+        'threshold': [0.45, 0.45, 0.35, 0.35, 0.30],
         'use_pos_weight': True,
-        'pos_weight_cap': 10.0
+        'pos_weight_cap': 30.0
     },
     'sbm': {
         'max_features': 5000,

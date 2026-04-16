@@ -53,8 +53,6 @@ class BETOMultiLabelClassifier:
         self.num_train_epochs = berto_cfg.get('epochs', 3)
         self.batch_size = berto_cfg.get('batch_size', 8)
         self.learning_rate = berto_cfg.get('learning_rate', 5e-5)
-        # umbral para convertir prob -> 0/1
-        self.threshold = berto_cfg.get("threshold", 0.3)
 
         # carpeta donde se guarda el modelo BETO
         # MODELS_DIR viene de config y es un Path
@@ -98,17 +96,19 @@ class BETOMultiLabelClassifier:
     def compute_metrics(self, eval_pred):
         """Calcula métricas para evaluación"""
         predictions, labels = eval_pred
-        sigmoid = torch.nn.Sigmoid()
-        probs = sigmoid(torch.Tensor(predictions))
-        
-        # Convertir probabilidades a etiquetas binarias
-        y_pred = np.zeros(probs.shape)
-        y_pred[np.where(probs >= self.threshold)] = 1
-        
+        probs = torch.sigmoid(torch.Tensor(predictions)).numpy()
+
+        # Soportar threshold como escalar o como lista/array por etiqueta
+        thr = np.array(self.threshold, dtype=np.float32)
+        if thr.ndim == 0:
+            y_pred = (probs >= float(thr)).astype(int)
+        else:
+            y_pred = (probs >= thr.reshape(1, -1)).astype(int)
+
         # Calcular métricas
         f1 = f1_score(labels, y_pred, average='macro', zero_division=0)
         accuracy = accuracy_score(labels, y_pred)
-        
+
         return {
             'f1_macro': f1,
             'accuracy': accuracy,
@@ -148,6 +148,7 @@ class BETOMultiLabelClassifier:
             val_dataset = None
         
         # Configurar argumentos de entrenamiento
+        eval_strategy = "epoch" if val_dataset else "no"
         training_args = TrainingArguments(
             output_dir=str(self.output_dir),
             num_train_epochs=self.num_train_epochs,
@@ -155,15 +156,21 @@ class BETOMultiLabelClassifier:
             per_device_eval_batch_size=self.batch_size,
             learning_rate=self.learning_rate,
             weight_decay=0.01,
+            warmup_ratio=0.1,
+            eval_strategy=eval_strategy,
+            save_strategy=eval_strategy,
+            load_best_model_at_end=True if val_dataset else False,
+            metric_for_best_model="f1_macro" if val_dataset else None,
+            greater_is_better=True if val_dataset else None,
             logging_dir="results/berto_logs",
-            logging_steps=50,
+            logging_steps=10,
             report_to=[],
         )
 
 
         
         # Crear trainer
-        #callbacks = [EarlyStoppingCallback(early_stopping_patience=2)] if val_dataset else []
+        callbacks = [EarlyStoppingCallback(early_stopping_patience=3)] if val_dataset else []
         
         if self.use_pos_weight and self.pos_weight is not None:
             self.trainer = WeightedTrainer(
@@ -173,6 +180,7 @@ class BETOMultiLabelClassifier:
                 eval_dataset=val_dataset,
                 compute_metrics=self.compute_metrics,
                 pos_weight=self.pos_weight,
+                callbacks=callbacks,
             )
         else:
             self.trainer = Trainer(
@@ -181,6 +189,7 @@ class BETOMultiLabelClassifier:
                 train_dataset=train_dataset,
                 eval_dataset=val_dataset,
                 compute_metrics=self.compute_metrics,
+                callbacks=callbacks,
             )
         
         # Entrenar

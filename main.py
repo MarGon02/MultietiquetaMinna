@@ -78,8 +78,13 @@ def main():
     berto_model = BETOMultiLabelClassifier(num_labels=len(label_cols))
 
     # Dividir entrenamiento en train/validación para BETO
+    # IMPORTANTE: usar textos ORIGINALES (X_train), no los limpios.
+    # BETO tiene su propio tokenizer y se beneficia del texto completo.
+    X_train_raw = X_train.tolist()
+    X_test_raw = X_test.tolist()
+
     X_bert_train, X_bert_val, y_bert_train, y_bert_val = train_test_split(
-        X_train_clean, y_train_array, test_size=0.2, random_state=42
+        X_train_raw, y_train_array, test_size=0.1, random_state=42
     )
 
     # Entrenar BETO
@@ -95,7 +100,7 @@ def main():
 
     # Evaluar BETO en el conjunto de test
     print("\n7.c 📊 EVALUANDO MODELO BETO...")
-    y_pred_berto, y_proba_berto = berto_model.predict(X_test_clean)
+    y_pred_berto, y_proba_berto = berto_model.predict(X_test_raw)
     from sklearn.metrics import precision_recall_fscore_support
 
     p, r, f1, support = precision_recall_fscore_support(

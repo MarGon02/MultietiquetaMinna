@@ -39,6 +39,8 @@ class ModelTrainer:
         
         self.X_train = X_train_clean
         self.X_test = X_test_clean
+        self.X_train_raw = X_train.tolist()  # textos originales para BETO
+        self.X_test_raw = X_test.tolist()
         self.y_train = y_train.values
         self.y_test = y_test.values
         
@@ -82,7 +84,7 @@ class ModelTrainer:
         # Dividir entrenamiento para validación
         from sklearn.model_selection import train_test_split
         X_bert_train, X_bert_val, y_bert_train, y_bert_val = train_test_split(
-            self.X_train, self.y_train, test_size=0.2, random_state=42
+            self.X_train_raw, self.y_train, test_size=0.1, random_state=42
         )
         
         # Entrenar BETO
@@ -96,8 +98,8 @@ class ModelTrainer:
         # Guardar modelo
         self.berto_model.save_model()
         
-        # Evaluar
-        y_pred_berto, y_proba_berto = self.berto_model.predict(self.X_test)
+        # Evaluar con textos originales
+        y_pred_berto, y_proba_berto = self.berto_model.predict(self.X_test_raw)
         
         if self.evaluator is None:
             self.evaluator = ModelEvaluator(self.label_columns)
