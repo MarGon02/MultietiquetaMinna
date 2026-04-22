@@ -135,8 +135,35 @@ def main():
         print("Probabilidad BETO para el caso real de negligencia:", y_proba_berto[i, idx])
         print("Predicción BETO para ese caso:", y_pred_berto[i, idx])
     
-    # 8. Guardar resultados
-    print("\n8. 💾 GUARDANDO RESULTADOS...")
+    # 8. Threshold Tuning Automático para BETO
+    print("\n8. 🎯 THRESHOLD TUNING AUTOMÁTICO (BETO)...")
+    from src.threshold_tuning import find_optimal_thresholds
+
+    tuning_results = find_optimal_thresholds(
+        y_true=y_test_array,
+        y_proba=y_proba_berto,
+        label_names=label_cols,
+        metric='f1'
+    )
+
+    # Re-evaluar BETO con umbrales óptimos
+    optimal_thresholds = tuning_results['optimal_thresholds']
+    y_pred_berto_optimized = np.zeros_like(y_proba_berto, dtype=int)
+    for i in range(len(label_cols)):
+        y_pred_berto_optimized[:, i] = (y_proba_berto[:, i] >= optimal_thresholds[i]).astype(int)
+
+    print("\n📌 MÉTRICAS POR ETIQUETA (BETO con umbrales óptimos)")
+    p_opt, r_opt, f1_opt, sup_opt = precision_recall_fscore_support(
+        y_test_array, y_pred_berto_optimized, average=None, zero_division=0
+    )
+    for i, name in enumerate(label_cols):
+        print(f"- {name}: precision={p_opt[i]:.3f} | recall={r_opt[i]:.3f} | f1={f1_opt[i]:.3f} | umbral={optimal_thresholds[i]}")
+
+    evaluator.calculate_metrics(y_test_array, y_pred_berto_optimized, 'BETO_optimizado')
+    evaluator.print_metrics('BETO_optimizado')
+
+    # 9. Guardar resultados
+    print("\n9. 💾 GUARDANDO RESULTADOS...")
     evaluator.save_results()
     evaluator.plot_metrics_comparison()
     

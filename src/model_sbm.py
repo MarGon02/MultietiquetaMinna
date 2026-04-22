@@ -15,7 +15,8 @@ class SBMClassifierChain:
         if model_type == 'logistic_regression':
             base_estimator = LogisticRegression(
                 random_state=MODEL_CONFIG['classifier_chain']['random_state'],
-                max_iter=MODEL_CONFIG['classifier_chain']['max_iter']
+                max_iter=MODEL_CONFIG['classifier_chain']['max_iter'],
+                class_weight='balanced'
             )
         elif model_type == 'random_forest':
             base_estimator = RandomForestClassifier(
